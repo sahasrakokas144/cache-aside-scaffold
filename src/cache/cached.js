@@ -20,5 +20,26 @@ import { redis } from "../redis.js";
  */
 export async function cached(key, ttl, fetcher) {
   // TODO: replace this naive passthrough with cache-aside + SET ... NX EX lock.
-  return fetcher();
+ const lockKey = "lock:" + key;
+
+ while(true) {
+  const value = await redis.get(key);
+
+  if(value !== null){
+    return JSON.parse(value);
+  }
+
+  const got = await redis.set(lockKey, "1","NX","EX", 5);
+
+  if(got === "OK"){
+    try{
+      const data = await fetcher();
+      await redis.set(key, JSON.stringify(data), "EX", ttl);
+      return data;
+    }finally{
+      await redis.del(lockKey);
+    }
+  }
+  await new Promise(resolve => setTimeout(resolve, 50));
+ }
 }

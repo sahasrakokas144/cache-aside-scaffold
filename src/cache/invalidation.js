@@ -22,8 +22,10 @@ import { redis } from "../redis.js";
 export const invalidate = {
   onNewPost: async () => {
     // TODO: DEL the cached feed key(s).
+    await redis.incr("posts:feed:ver");
   },
   onProfileEdit: async (userId) => {
     // TODO: DEL only this user's cached profile key.
+    await redis.del(`user:${userId}`);
   },
 };
